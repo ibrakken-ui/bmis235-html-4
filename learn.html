@@ -1,0 +1,168 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Indie &amp; Co. HTML Study Desk</title>
+<style>
+  :root { --navy:#14213d; --navy-2:#1f3160; --pink:#f4a6c0; --pink-deep:#c2457a; --paper:#fdf7f9; --ink:#1b1b2b; --ok:#2e7d5b; --bad:#b3363f; }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family: Georgia, "Times New Roman", serif; background:var(--paper); color:var(--ink); line-height:1.6; }
+  header { background:var(--navy); color:#fff; padding:28px 20px 0; }
+  header .wrap { max-width:760px; margin:0 auto; }
+  header a { color:var(--pink); font-family:system-ui, sans-serif; font-size:.9rem; }
+  h1 { font-size:2rem; margin:10px 0 4px; }
+  header p { margin:0 0 18px; color:#d8dcec; max-width:56ch; }
+  nav { display:flex; gap:6px; }
+  nav button { font:600 1rem system-ui, sans-serif; padding:10px 20px; border:0; border-radius:8px 8px 0 0; background:var(--navy-2); color:#fff; cursor:pointer; }
+  nav button[aria-selected="true"] { background:var(--paper); color:var(--navy); }
+  nav button:focus-visible, .btn:focus-visible, select:focus-visible, input:focus-visible { outline:3px solid var(--pink-deep); outline-offset:2px; }
+  main { max-width:760px; margin:0 auto; padding:28px 20px 60px; }
+  h2 { color:var(--navy); margin-top:0; }
+  label { font-family:system-ui, sans-serif; font-weight:600; display:block; margin:16px 0 6px; }
+  select, input[type=text] { width:100%; padding:10px; font:1rem system-ui, sans-serif; border:2px solid var(--navy); border-radius:8px; background:#fff; }
+  .btn { font:600 1rem system-ui, sans-serif; background:var(--pink-deep); color:#fff; border:0; padding:11px 22px; border-radius:8px; cursor:pointer; margin-top:16px; }
+  .btn.alt { background:var(--navy); }
+  pre { white-space:pre-wrap; background:#fff; border:2px solid var(--pink); border-radius:8px; padding:16px; font:.95rem/1.55 system-ui, sans-serif; }
+  .q { background:#fff; border:2px solid var(--navy); border-radius:10px; padding:16px 18px; margin:18px 0; }
+  .q p { margin:0 0 10px; font-weight:bold; }
+  .opt { display:block; width:100%; text-align:left; font:1rem system-ui, sans-serif; padding:10px 12px; margin:6px 0; border:2px solid #cfd3e3; border-radius:8px; background:#fff; cursor:pointer; }
+  .opt:hover:not(:disabled) { border-color:var(--pink-deep); }
+  .opt.right { border-color:var(--ok); background:#e7f5ee; }
+  .opt.wrong { border-color:var(--bad); background:#fbe9ea; }
+  .why { font:.95rem system-ui, sans-serif; margin-top:8px; min-height:1.2em; }
+  .score { font:600 1.2rem system-ui, sans-serif; color:var(--navy); }
+  [hidden] { display:none !important; }
+  code { background:#f1e3ea; padding:1px 5px; border-radius:4px; }
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <a href="index.html">&larr; Back to Indie &amp; Co.</a>
+    <h1>HTML Study Desk</h1>
+    <p>Pick an HTML-1 to HTML-3 idea, then listen to it explained or test yourself.</p>
+    <nav role="tablist" aria-label="Study modes">
+      <button role="tab" id="tab-listen" aria-selected="true" aria-controls="listen">Listen</button>
+      <button role="tab" id="tab-practice" aria-selected="false" aria-controls="practice">Practice</button>
+    </nav>
+  </div>
+</header>
+
+<main>
+  <section id="listen" role="tabpanel" aria-labelledby="tab-listen">
+    <h2>Get an audio explainer prompt</h2>
+    <p>Choose a concept (or type your own), then copy the prompt into NotebookLM to get an audio explainer.</p>
+    <label for="concept">Concept</label>
+    <select id="concept">
+      <option>tags and elements</option>
+      <option>head vs body</option>
+      <option>links and file paths</option>
+      <option>the stylesheet (styles.css)</option>
+      <option>the cascade</option>
+      <option>images and alt text</option>
+    </select>
+    <label for="custom">Or type your own concept</label>
+    <input type="text" id="custom" placeholder="e.g. classes vs ids">
+    <button class="btn" id="make">Make my prompt</button>
+    <div id="out" hidden>
+      <pre id="prompt"></pre>
+      <button class="btn alt" id="copy">Copy prompt</button>
+      <span id="copied" role="status" style="font-family:system-ui,sans-serif;margin-left:10px;"></span>
+    </div>
+  </section>
+
+  <section id="practice" role="tabpanel" aria-labelledby="tab-practice" hidden>
+    <h2>Quick quiz</h2>
+    <p>Pick an answer for each question. You will see right away whether it was correct.</p>
+    <div id="quiz"></div>
+    <p class="score" id="score" role="status"></p>
+    <button class="btn alt" id="reset">Start over</button>
+  </section>
+</main>
+
+<script>
+  // ---------- Tabs ----------
+  var tabs = { listen: document.getElementById('tab-listen'), practice: document.getElementById('tab-practice') };
+  function show(which) {
+    ['listen', 'practice'].forEach(function (name) {
+      document.getElementById(name).hidden = (name !== which);
+      tabs[name].setAttribute('aria-selected', name === which ? 'true' : 'false');
+    });
+  }
+  tabs.listen.onclick = function () { show('listen'); };
+  tabs.practice.onclick = function () { show('practice'); };
+
+  // ---------- Listen: prompt maker ----------
+  document.getElementById('make').onclick = function () {
+    var custom = document.getElementById('custom').value.trim();
+    var concept = custom || document.getElementById('concept').value;
+    var text =
+      'Create an audio overview about this web design concept: "' + concept + '".\n\n' +
+      'My audience: a business student who just learned HTML and is building a small website with HTML and CSS on GitHub Pages.\n' +
+      'Please: (1) explain the idea in plain language with no jargon left undefined, ' +
+      '(2) give one everyday analogy, (3) walk through one small example, such as a link in a nav menu or a rule in styles.css, ' +
+      '(4) name the most common beginner mistake and how to fix it, and (5) end with two questions I can use to check myself.\n' +
+      'Keep it conversational and under 8 minutes.';
+    document.getElementById('prompt').textContent = text;
+    document.getElementById('out').hidden = false;
+    document.getElementById('copied').textContent = '';
+  };
+  document.getElementById('copy').onclick = function () {
+    var text = document.getElementById('prompt').textContent;
+    var done = function () { document.getElementById('copied').textContent = 'Copied.'; };
+    if (navigator.clipboard) { navigator.clipboard.writeText(text).then(done, function () { document.getElementById('copied').textContent = 'Select the text and copy it by hand.'; }); }
+    else { document.getElementById('copied').textContent = 'Select the text and copy it by hand.'; }
+  };
+
+  // ---------- Practice: quiz ----------
+  var questions = [
+    { q: 'Which part of an HTML page holds the <title> and the link to your stylesheet?',
+      a: ['<body>', '<head>', '<footer>'], right: 1,
+      why: 'The <head> holds information about the page. The <body> holds what people see.' },
+    { q: 'Your page is in the same folder as styles.css. Which line links the stylesheet?',
+      a: ['<link rel="stylesheet" href="styles.css">', '<style src="styles.css">', '<a href="styles.css">'], right: 0,
+      why: 'A stylesheet is connected with a <link> tag using rel="stylesheet" and an href path.' },
+    { q: 'Your image is inside a folder called images. Which src finds it from index.html?',
+      a: ['src="/images/menu.png"', 'src="images/menu.png"', 'src="menu.png/images"'], right: 1,
+      why: 'Start from the current folder, then go into the images folder: images/menu.png.' },
+    { q: 'Two CSS rules both style the same paragraph. One says color: pink, and a later one says color: navy. Which wins (same specificity)?',
+      a: ['pink, because it came first', 'navy, because it came later', 'Neither; the browser shows an error'], right: 1,
+      why: 'In the cascade, when specificity is equal, the rule that comes later wins.' },
+    { q: 'Why is one styles.css shared by all four pages better than styling each page separately?',
+      a: ['One change updates every page', 'It makes the pages load in color only', 'HTML pages cannot contain styles'], right: 0,
+      why: 'A shared stylesheet means you edit one file and all linked pages change together.' }
+  ];
+  var correct = 0, answered = 0;
+  var quizEl = document.getElementById('quiz');
+  var scoreEl = document.getElementById('score');
+
+  function build() {
+    correct = 0; answered = 0; scoreEl.textContent = '';
+    quizEl.innerHTML = '';
+    questions.forEach(function (item, qi) {
+      var box = document.createElement('div'); box.className = 'q';
+      var p = document.createElement('p'); p.textContent = (qi + 1) + '. ' + item.q; box.appendChild(p);
+      var why = document.createElement('div'); why.className = 'why'; why.setAttribute('aria-live', 'polite');
+      var btns = [];
+      item.a.forEach(function (text, ai) {
+        var b = document.createElement('button'); b.className = 'opt'; b.type = 'button'; b.textContent = text;
+        b.onclick = function () {
+          btns.forEach(function (x) { x.disabled = true; });
+          btns[item.right].classList.add('right');
+          if (ai === item.right) { correct++; why.textContent = 'Correct. ' + item.why; }
+          else { b.classList.add('wrong'); why.textContent = 'Not quite. ' + item.why; }
+          answered++;
+          if (answered === questions.length) { scoreEl.textContent = 'You got ' + correct + ' of ' + questions.length + '.'; }
+        };
+        btns.push(b); box.appendChild(b);
+      });
+      box.appendChild(why); quizEl.appendChild(box);
+    });
+  }
+  document.getElementById('reset').onclick = build;
+  build();
+</script>
+</body>
+</html>
